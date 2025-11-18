@@ -1,0 +1,22 @@
+const express = require('express');
+const router = express.Router();
+const jwt = require('jsonwebtoken');
+const pool = require('../db/pool');
+const { jwtSecret } = require('../config');
+
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE email=$1', [email]);
+    const user = result.rows[0];
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    // NOTE: password hashing omitted for seed users; for production compare hashes.
+    const token = jwt.sign({ uid: user.id, role: user.role }, jwtSecret, { expiresIn: '7d' });
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+module.exports = router;
